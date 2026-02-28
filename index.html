@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algorithm as Recipe - Smart Recipe Recommender</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --dark-bg: #0f0f23;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --card-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(246, 93, 123, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(79, 172, 254, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--accent-gradient);
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 20px rgba(79, 172, 254, 0.6);
+        }
+
+        .progress-steps {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 999;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 30px;
+            border-radius: 50px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(20px);
+        }
+
+        .step-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ddd;
+            transition: var(--transition);
+        }
+
+        .step-indicator.active {
+            background: var(--accent-gradient);
+            transform: scale(1.5);
+            box-shadow: 0 0 15px rgba(79, 172, 254, 0.6);
+        }
+
+        /* Page Common Styles */
+        .page {
+            display: none;
+            animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 100vh;
+            padding-top: 80px;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 3rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 15px;
+            color: white;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            letter-spacing: -1px;
+        }
+
+        .page-subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.2rem;
+            margin-bottom: 50px;
+            font-weight: 300;
+        }
+
+        /* Intro Page */
+        .intro-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+        }
+
+        .book-cover {
+            width: 400px;
+            height: 550px;
+            background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+            border-radius: 20px;
+            box-shadow: 
+                0 30px 80px rgba(0, 0, 0, 0.3),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: floatBook 6s ease-in-out infinite;
+        }
+
+        @keyframes floatBook {
+            0%, 100% { transform: translateY(0) rotateY(-5deg); }
+            50% { transform: translateY(-20px) rotateY(5deg); }
+        }
+
+        .book-cover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -20px;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(90deg, #ddd 0%, #f5f5f5 100%);
+            border-radius: 20px 0 0 20px;
+            transform: translateZ(-10px);
+        }
+
+        .book-icon {
+            font-size: 100px;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+        }
+
+        .book-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            text-align: center;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 15px;
+            line-height: 1.2;
+        }
+
+        .book-subtitle {
+            color: #666;
+            text-align: center;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .start-btn {
+            margin-top: 50px;
+            padding: 20px 60px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: white;
+            background: var(--secondary-gradient);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 15px 40px rgba(245, 87, 108, 0.4);
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(245, 87, 108, 0.6);
+        }
+
+        /* Selection Grid */
+        .selection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto 40px;
+        }
+
+        .item-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--card-shadow);
+            border: 3px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .item-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--accent-gradient);
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .item-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
+        }
+
+        .item-card.selected {
+            border-color: #4facfe;
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1) 0%, rgba(0, 242, 254, 0.1) 100%);
+        }
+
+        .item-card.selected::before {
+            opacity: 0.1;
+        }
+
+        .item-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
+            display: inline-block;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .item-card:hover .item-icon {
+            animation: none;
+            transform: scale(1.2) rotate(5deg);
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .category-section {
+            margin-bottom: 50px;
+        }
+
+        .category-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Confirmation Page */
+        .confirmation-container {
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .bowl-container {
+            width: 400px;
+            height: 400px;
+            margin: 0 auto 40px;
+            position: relative;
+        }
+
+        .bowl {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+            border-radius: 50% 50% 45% 45%;
+            box-shadow: 
+                0 30px 60px rgba(0, 0, 0, 0.3),
+                inset 0 -20px 40px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            gap: 15px;
+        }
+
+        .bowl-item {
+            background: var(--card-bg);
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 600;
+            color: #333;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+            font-size: 1rem;
+            animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .confirm-question {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 30px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .confirm-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .confirm-btn {
+            padding: 18px 50px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .confirm-btn.yes {
+            background: var(--accent-gradient);
+            color: white;
+            box-shadow: 0 15px 40px rgba(79, 172, 254, 0.4);
+        }
+
+        .confirm-btn.yes:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(79, 172, 254, 0.6);
+        }
+
+        .confirm-btn.no {
+            background: var(--secondary-gradient);
+            color: white;
+            box-shadow: 0 15px 40px rgba(245, 87, 108, 0.4);
+        }
+
+        .confirm-btn.no:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(245, 87, 108, 0.6);
+        }
+
+        /* Profile Form */
+        .profile-form {
+            max-width: 700px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 30px;
+            padding: 50px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .form-group {
+            margin-bottom: 40px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .radio-option {
+            position: relative;
+        }
+
+        .radio-option input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .radio-option label {
+            display: block;
+            padding: 15px 30px;
+            background: #f5f5f5;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+            color: #666;
+            border: 2px solid transparent;
+        }
+
+        .radio-option input:checked + label {
+            background: var(--accent-gradient);
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 10px 30px rgba(79, 172, 254, 0.4);
+        }
+
+        .radio-option label:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .age-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 18px 30px;
+            font-size: 1.1rem;
+            border: 3px solid #e0e0e0;
+            border-radius: 50px;
+            text-align: center;
+            font-weight: 600;
+            color: #333;
+            transition: var(--transition);
+            display: block;
+            margin: 0 auto;
+        }
+
+        .age-input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 4px rgba(79, 172, 254, 0.2);
+        }
+
+        .submit-btn {
+            display: block;
+            width: 100%;
+            max-width: 300px;
+            margin: 50px auto 0;
+            padding: 20px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: white;
+            background: var(--secondary-gradient);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 15px 40px rgba(245, 87, 108, 0.4);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(245, 87, 108, 0.6);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Results Page - Netflix Style */
+        .results-page {
+            background: var(--dark-bg);
+            min-height: 100vh;
+            padding: 100px 20px 50px;
+        }
+
+        .results-page .page-title {
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .results-page .page-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 60px;
+        }
+
+        .recipe-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto 60px;
+        }
+
+        .recipe-card {
+            background: rgba(20, 20, 40, 0.9);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: var(--transition);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .recipe-card:hover {
+            transform: translateY(-15px) scale(1.02);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+        }
+
+        .recipe-image {
+            width: 100%;
+            height: 250px;
+            background: var(--primary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 100px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .recipe-image::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.4) 100%);
+        }
+
+        .recipe-rank {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white;
+            z-index: 10;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .recipe-match {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: rgba(79, 172, 254, 0.9);
+            border-radius: 30px;
+            font-weight: 700;
+            color: white;
+            font-size: 1rem;
+            z-index: 10;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .recipe-content {
+            padding: 30px;
+        }
+
+        .recipe-name {
+            font-size: 2rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .recipe-cuisine {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 20px;
+        }
+
+        .recipe-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .detail-item {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+        }
+
+        .detail-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .detail-label {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-weight: 700;
+            color: white;
+        }
+
+        .recipe-ingredients {
+            margin-bottom: 25px;
+        }
+
+        .ingredients-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 12px;
+        }
+
+        .ingredients-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .ingredient-tag {
+            padding: 6px 14px;
+            background: rgba(79, 172, 254, 0.2);
+            border: 1px solid rgba(79, 172, 254, 0.4);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .recipe-reason {
+            padding: 20px;
+            background: rgba(79, 172, 254, 0.1);
+            border-left: 4px solid #4facfe;
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .restart-btn {
+            display: block;
+            max-width: 300px;
+            margin: 0 auto;
+            padding: 20px 60px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: white;
+            background: var(--secondary-gradient);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 15px 40px rgba(245, 87, 108, 0.4);
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .restart-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(245, 87, 108, 0.6);
+        }
+
+        .error-message {
+            background: rgba(245, 87, 108, 0.9);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-align: center;
+            max-width: 500px;
+            margin: 0 auto 30px;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(245, 87, 108, 0.4);
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 2rem;
+            }
+
+            .book-cover {
+                width: 300px;
+                height: 400px;
+                padding: 40px;
+            }
+
+            .book-title {
+                font-size: 1.8rem;
+            }
+
+            .selection-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 15px;
+            }
+
+            .item-card {
+                padding: 20px 15px;
+            }
+
+            .item-icon {
+                font-size: 2.5rem;
+            }
+
+            .bowl-container {
+                width: 300px;
+                height: 300px;
+            }
+
+            .profile-form {
+                padding: 30px;
+            }
+
+            .recipe-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .progress-steps {
+                gap: 10px;
+                padding: 10px 20px;
+            }
+        }
+
+        /* Navigation Buttons */
+        .nav-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+
+        .nav-btn {
+            padding: 18px 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-btn.primary {
+            background: var(--accent-gradient);
+            border: none;
+            box-shadow: 0 15px 40px rgba(79, 172, 254, 0.4);
+        }
+
+        .nav-btn.primary:hover {
+            box-shadow: 0 20px 50px rgba(79, 172, 254, 0.6);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- Progress Steps -->
+    <div class="progress-steps">
+        <div class="step-indicator active" data-step="0"></div>
+        <div class="step-indicator" data-step="1"></div>
+        <div class="step-indicator" data-step="2"></div>
+        <div class="step-indicator" data-step="3"></div>
+        <div class="step-indicator" data-step="4"></div>
+        <div class="step-indicator" data-step="5"></div>
+    </div>
+
+    <div class="container">
+        <!-- Page 1: Intro -->
+        <div class="page active" id="page-intro">
+            <div class="intro-container">
+                <div class="book-cover">
+                    <div class="book-icon">📖</div>
+                    <div class="book-title">Algorithm<br>as Recipe</div>
+                    <div class="book-subtitle">Smart Recipe Recommender</div>
+                </div>
+                <button class="start-btn" onclick="goToPage(1)">
+                    <i class="fas fa-play"></i> Get Started
+                </button>
+            </div>
+        </div>
+
+        <!-- Page 2: Ingredient Selection -->
+        <div class="page" id="page-ingredients">
+            <h1 class="page-title">Select Your Ingredients</h1>
+            <p class="page-subtitle">Choose what you have in your fridge</p>
+
+            <div id="errorIngredients" class="error-message">
+                Please select at least 2 ingredients
+            </div>
+
+            <div class="category-section">
+                <h2 class="category-title">🥩 Main Ingredients</h2>
+                <div class="selection-grid" id="mainIngredients"></div>
+            </div>
+
+            <div class="category-section">
+                <h2 class="category-title">🧄 Sub Ingredients</h2>
+                <div class="selection-grid" id="subIngredients"></div>
+            </div>
+
+            <div class="category-section">
+                <h2 class="category-title">🥕 Vegetables</h2>
+                <div class="selection-grid" id="vegetables"></div>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToPage(0)">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <button class="nav-btn primary" onclick="confirmIngredients()">
+                    Next <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Page 3: Ingredient Confirmation -->
+        <div class="page" id="page-confirm">
+            <h1 class="page-title">Confirm Your Selection</h1>
+            <p class="page-subtitle">Are these the ingredients you chose?</p>
+
+            <div class="confirmation-container">
+                <div class="bowl-container">
+                    <div class="bowl" id="bowlItems"></div>
+                </div>
+                <p class="confirm-question">Is this correct?</p>
+                <div class="confirm-buttons">
+                    <button class="confirm-btn yes" onclick="goToPage(3)">
+                        <i class="fas fa-check"></i> Yes
+                    </button>
+                    <button class="confirm-btn no" onclick="goToPage(1)">
+                        <i class="fas fa-times"></i> No
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page 4: Cooking Tools Selection -->
+        <div class="page" id="page-tools">
+            <h1 class="page-title">Select Your Cooking Tools</h1>
+            <p class="page-subtitle">Choose the tools you have available</p>
+
+            <div id="errorTools" class="error-message">
+                Please select at least 1 cooking tool
+            </div>
+
+            <div class="category-section">
+                <h2 class="category-title">🔥 Heat Cooking Tools</h2>
+                <div class="selection-grid" id="heatTools"></div>
+            </div>
+
+            <div class="category-section">
+                <h2 class="category-title">🔪 Non-Heat Tools</h2>
+                <div class="selection-grid" id="nonHeatTools"></div>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goToPage(2)">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <button class="nav-btn primary" onclick="confirmTools()">
+                    Next <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Page 5: User Profile -->
+        <div class="page" id="page-profile">
+            <h1 class="page-title">Tell Us About You</h1>
+            <p class="page-subtitle">Help us personalize your recommendations</p>
+
+            <div id="errorProfile" class="error-message">
+                Please complete all fields
+            </div>
+
+            <form class="profile-form" id="profileForm">
+                <div class="form-group">
+                    <label class="form-label">👤 Gender</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" name="gender" id="male" value="male">
+                            <label for="male">Male</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="gender" id="female" value="female">
+                            <label for="female">Female</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="gender" id="other" value="other">
+                            <label for="other">Other</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="age">🎂 Age</label>
+                    <input type="number" class="age-input" id="age" name="age" 
+                           placeholder="Enter your age" min="1" max="120" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">👨‍🍳 Cooking Skill Level</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" name="skill" id="beginner" value="beginner">
+                            <label for="beginner">Beginner</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="skill" id="intermediate" value="intermediate">
+                            <label for="intermediate">Intermediate</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="skill" id="advanced" value="advanced">
+                            <label for="advanced">Advanced</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">🍽️ Preferred Cuisine</label>
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" name="cuisine" id="korean" value="Korean">
+                            <label for="korean">🇰🇷 Korean</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="cuisine" id="chinese" value="Chinese">
+                            <label for="chinese">🇨🇳 Chinese</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="cuisine" id="japanese" value="Japanese">
+                            <label for="japanese">🇯🇵 Japanese</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="cuisine" id="western" value="Western">
+                            <label for="western">🇺🇸 Western</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" name="cuisine" id="any" value="Any">
+                            <label for="any">🌍 Any</label>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" class="submit-btn" onclick="submitProfile()">
+                    Get Recommendations <i class="fas fa-magic"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- Page 6: Results -->
+        <div class="page results-page" id="page-results">
+            <h1 class="page-title">Your Personalized Recipes</h1>
+            <p class="page-subtitle">Based on your ingredients, tools, and preferences</p>
+
+            <div class="recipe-grid" id="recipeResults"></div>
+
+            <button class="restart-btn" onclick="restart()">
+                <i class="fas fa-redo"></i> Start Over
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Data
+        const ingredients = {
+            main: [
+                { name: 'Beef', icon: '🥩', id: 'beef' },
+                { name: 'Pork', icon: '🥓', id: 'pork' },
+                { name: 'Chicken', icon: '🍗', id: 'chicken' },
+                { name: 'Shrimp', icon: '🦐', id: 'shrimp' },
+                { name: 'Tofu', icon: '🧈', id: 'tofu' },
+                { name: 'Egg', icon: '🥚', id: 'egg' }
+            ],
+            sub: [
+                { name: 'Soy Sauce', icon: '🧂', id: 'soy_sauce' },
+                { name: 'Sesame Oil', icon: '🫗', id: 'sesame_oil' },
+                { name: 'Garlic', icon: '🧄', id: 'garlic' },
+                { name: 'Ginger', icon: '🫚', id: 'ginger' },
+                { name: 'Pasta', icon: '🍝', id: 'pasta' }
+            ],
+            vegetables: [
+                { name: 'Onion', icon: '🧅', id: 'onion' },
+                { name: 'Tomato', icon: '🍅', id: 'tomato' },
+                { name: 'Carrot', icon: '🥕', id: 'carrot' },
+                { name: 'Mushroom', icon: '🍄', id: 'mushroom' },
+                { name: 'Cabbage', icon: '🥬', id: 'cabbage' }
+            ]
+        };
+
+        const tools = {
+            heat: [
+                { name: 'Stove', icon: '🔥', id: 'stove' },
+                { name: 'Oven', icon: '🔥', id: 'oven' },
+                { name: 'Microwave', icon: '📻', id: 'microwave' },
+                { name: 'Pan', icon: '🍳', id: 'pan' },
+                { name: 'Pot', icon: '🍲', id: 'pot' },
+                { name: 'Wok', icon: '🥘', id: 'wok' }
+            ],
+            nonHeat: [
+                { name: 'Knife', icon: '🔪', id: 'knife' },
+                { name: 'Cutting Board', icon: '🪵', id: 'cutting_board' },
+                { name: 'Bowl', icon: '🥣', id: 'bowl' },
+                { name: 'Chopsticks', icon: '🥢', id: 'chopsticks' },
+                { name: 'Spoon', icon: '🥄', id: 'spoon' },
+                { name: 'Fork', icon: '🍴', id: 'fork' }
+            ]
+        };
+
+        const recipes = [
+            {
+                name: 'Bulgogi',
+                cuisine: 'Korean',
+                icon: '🥩',
+                difficulty: 'intermediate',
+                cookingTime: '30 min',
+                servings: 4,
+                requiredIngredients: ['beef', 'soy_sauce', 'garlic', 'sesame_oil', 'onion'],
+                optionalIngredients: ['carrot', 'mushroom'],
+                requiredTools: ['pan', 'knife', 'cutting_board'],
+                preferredAge: [20, 60]
+            },
+            {
+                name: 'Kimchi Stew',
+                cuisine: 'Korean',
+                icon: '🍲',
+                difficulty: 'beginner',
+                cookingTime: '25 min',
+                servings: 4,
+                requiredIngredients: ['pork', 'tofu', 'onion', 'garlic'],
+                optionalIngredients: ['mushroom'],
+                requiredTools: ['pot', 'knife', 'cutting_board'],
+                preferredAge: [20, 80]
+            },
+            {
+                name: 'Bibimbap',
+                cuisine: 'Korean',
+                icon: '🍚',
+                difficulty: 'intermediate',
+                cookingTime: '35 min',
+                servings: 2,
+                requiredIngredients: ['beef', 'egg', 'carrot', 'mushroom', 'sesame_oil'],
+                optionalIngredients: ['cabbage'],
+                requiredTools: ['pan', 'bowl', 'knife'],
+                preferredAge: [15, 70]
+            },
+            {
+                name: 'Mapo Tofu',
+                cuisine: 'Chinese',
+                icon: '🌶️',
+                difficulty: 'intermediate',
+                cookingTime: '20 min',
+                servings: 3,
+                requiredIngredients: ['tofu', 'pork', 'garlic', 'ginger', 'soy_sauce'],
+                optionalIngredients: ['onion'],
+                requiredTools: ['wok', 'knife', 'cutting_board'],
+                preferredAge: [20, 60]
+            },
+            {
+                name: 'Jajangmyeon',
+                cuisine: 'Chinese',
+                icon: '🍜',
+                difficulty: 'intermediate',
+                cookingTime: '30 min',
+                servings: 2,
+                requiredIngredients: ['pork', 'onion', 'garlic'],
+                optionalIngredients: ['cabbage', 'carrot'],
+                requiredTools: ['wok', 'pot', 'knife'],
+                preferredAge: [10, 60]
+            },
+            {
+                name: 'Sweet & Sour Pork',
+                cuisine: 'Chinese',
+                icon: '🍖',
+                difficulty: 'advanced',
+                cookingTime: '40 min',
+                servings: 4,
+                requiredIngredients: ['pork', 'onion', 'carrot', 'tomato'],
+                optionalIngredients: ['mushroom'],
+                requiredTools: ['wok', 'knife', 'cutting_board'],
+                preferredAge: [10, 70]
+            },
+            {
+                name: 'Fried Rice',
+                cuisine: 'Chinese',
+                icon: '🍚',
+                difficulty: 'beginner',
+                cookingTime: '15 min',
+                servings: 2,
+                requiredIngredients: ['egg', 'onion', 'garlic', 'soy_sauce'],
+                optionalIngredients: ['carrot', 'shrimp'],
+                requiredTools: ['wok', 'knife', 'spatula'],
+                preferredAge: [10, 80]
+            },
+            {
+                name: 'Tonkatsu',
+                cuisine: 'Japanese',
+                icon: '🍱',
+                difficulty: 'intermediate',
+                cookingTime: '30 min',
+                servings: 2,
+                requiredIngredients: ['pork', 'egg', 'cabbage'],
+                optionalIngredients: ['tomato'],
+                requiredTools: ['pan', 'knife', 'cutting_board'],
+                preferredAge: [10, 70]
+            },
+            {
+                name: 'Gyudon',
+                cuisine: 'Japanese',
+                icon: '🍛',
+                difficulty: 'beginner',
+                cookingTime: '20 min',
+                servings: 2,
+                requiredIngredients: ['beef', 'onion', 'soy_sauce', 'ginger'],
+                optionalIngredients: ['mushroom'],
+                requiredTools: ['pan', 'knife', 'cutting_board'],
+                preferredAge: [15, 70]
+            },
+            {
+                name: 'Miso Soup',
+                cuisine: 'Japanese',
+                icon: '🍵',
+                difficulty: 'beginner',
+                cookingTime: '10 min',
+                servings: 4,
+                requiredIngredients: ['tofu', 'onion'],
+                optionalIngredients: ['mushroom', 'cabbage'],
+                requiredTools: ['pot', 'knife', 'cutting_board'],
+                preferredAge: [10, 90]
+            },
+            {
+                name: 'Oyakodon',
+                cuisine: 'Japanese',
+                icon: '🍚',
+                difficulty: 'beginner',
+                cookingTime: '20 min',
+                servings: 2,
+                requiredIngredients: ['chicken', 'egg', 'onion', 'soy_sauce'],
+                optionalIngredients: [],
+                requiredTools: ['pan', 'knife', 'cutting_board'],
+                preferredAge: [10, 80]
+            },
+            {
+                name: 'Steak',
+                cuisine: 'Western',
+                icon: '🥩',
+                difficulty: 'intermediate',
+                cookingTime: '25 min',
+                servings: 2,
+                requiredIngredients: ['beef', 'garlic'],
+                optionalIngredients: ['mushroom', 'tomato'],
+                requiredTools: ['pan', 'knife', 'cutting_board'],
+                preferredAge: [20, 70]
+            },
+            {
+                name: 'Carbonara',
+                cuisine: 'Western',
+                icon: '🍝',
+                difficulty: 'intermediate',
+                cookingTime: '20 min',
+                servings: 2,
+                requiredIngredients: ['pasta', 'egg', 'pork', 'garlic'],
+                optionalIngredients: [],
+                requiredTools: ['pot', 'pan', 'knife'],
+                preferredAge: [15, 70]
+            },
+            {
+                name: 'Chicken Steak',
+                cuisine: 'Western',
+                icon: '🍗',
+                difficulty: 'intermediate',
+                cookingTime: '30 min',
+                servings: 2,
+                requiredIngredients: ['chicken', 'garlic', 'onion'],
+                optionalIngredients: ['mushroom', 'tomato'],
+                requiredTools: ['pan', 'oven', 'knife'],
+                preferredAge: [10, 70]
+            },
+            {
+                name: 'Shrimp Scampi',
+                cuisine: 'Western',
+                icon: '🦐',
+                difficulty: 'intermediate',
+                cookingTime: '20 min',
+                servings: 2,
+                requiredIngredients: ['shrimp', 'garlic', 'pasta'],
+                optionalIngredients: ['tomato'],
+                requiredTools: ['pan', 'pot', 'knife'],
+                preferredAge: [20, 70]
+            },
+            {
+                name: 'Omelette',
+                cuisine: 'Western',
+                icon: '🍳',
+                difficulty: 'beginner',
+                cookingTime: '10 min',
+                servings: 1,
+                requiredIngredients: ['egg', 'onion'],
+                optionalIngredients: ['tomato', 'mushroom', 'carrot'],
+                requiredTools: ['pan', 'knife', 'spatula'],
+                preferredAge: [5, 90]
+            },
+            {
+                name: 'Salad',
+                cuisine: 'Western',
+                icon: '🥗',
+                difficulty: 'beginner',
+                cookingTime: '10 min',
+                servings: 2,
+                requiredIngredients: ['tomato', 'onion', 'cabbage'],
+                optionalIngredients: ['carrot', 'egg'],
+                requiredTools: ['knife', 'cutting_board', 'bowl'],
+                preferredAge: [10, 90]
+            }
+        ];
+
+        // State
+        let currentPage = 0;
+        let selectedIngredients = [];
+        let selectedTools = [];
+        let userProfile = {};
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            renderIngredients();
+            renderTools();
+            updateProgress();
+        });
+
+        // Render Functions
+        function renderIngredients() {
+            renderIngredientCategory('mainIngredients', ingredients.main);
+            renderIngredientCategory('subIngredients', ingredients.sub);
+            renderIngredientCategory('vegetables', ingredients.vegetables);
+        }
+
+        function renderIngredientCategory(containerId, items) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = items.map(item => `
+                <div class="item-card" onclick="toggleSelection('ingredient', '${item.id}')" data-id="${item.id}">
+                    <div class="item-icon">${item.icon}</div>
+                    <div class="item-name">${item.name}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderTools() {
+            renderToolCategory('heatTools', tools.heat);
+            renderToolCategory('nonHeatTools', tools.nonHeat);
+        }
+
+        function renderToolCategory(containerId, items) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = items.map(item => `
+                <div class="item-card" onclick="toggleSelection('tool', '${item.id}')" data-id="${item.id}">
+                    <div class="item-icon">${item.icon}</div>
+                    <div class="item-name">${item.name}</div>
+                </div>
+            `).join('');
+        }
+
+        // Selection Functions
+        function toggleSelection(type, id) {
+            const array = type === 'ingredient' ? selectedIngredients : selectedTools;
+            const index = array.indexOf(id);
+            
+            if (index > -1) {
+                array.splice(index, 1);
+            } else {
+                array.push(id);
+            }
+
+            // Update UI
+            const cards = document.querySelectorAll(`[data-id="${id}"]`);
+            cards.forEach(card => card.classList.toggle('selected'));
+        }
+
+        // Navigation Functions
+        function goToPage(pageNum) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            
+            // Show target page
+            const pages = ['intro', 'ingredients', 'confirm', 'tools', 'profile', 'results'];
+            document.getElementById(`page-${pages[pageNum]}`).classList.add('active');
+            
+            currentPage = pageNum;
+            updateProgress();
+
+            // Special handling for confirmation page
+            if (pageNum === 2) {
+                displayBowlItems();
+            }
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateProgress() {
+            const progress = (currentPage / 5) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+
+            // Update step indicators
+            document.querySelectorAll('.step-indicator').forEach((step, index) => {
+                if (index <= currentPage) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.remove('active');
+                }
+            });
+        }
+
+        // Validation Functions
+        function confirmIngredients() {
+            const error = document.getElementById('errorIngredients');
+            if (selectedIngredients.length < 2) {
+                error.classList.add('show');
+                setTimeout(() => error.classList.remove('show'), 3000);
+                return;
+            }
+            error.classList.remove('show');
+            goToPage(2);
+        }
+
+        function confirmTools() {
+            const error = document.getElementById('errorTools');
+            if (selectedTools.length < 1) {
+                error.classList.add('show');
+                setTimeout(() => error.classList.remove('show'), 3000);
+                return;
+            }
+            error.classList.remove('show');
+            goToPage(4);
+        }
+
+        function displayBowlItems() {
+            const bowl = document.getElementById('bowlItems');
+            const allIngredients = [...ingredients.main, ...ingredients.sub, ...ingredients.vegetables];
+            
+            bowl.innerHTML = selectedIngredients.map(id => {
+                const item = allIngredients.find(i => i.id === id);
+                return `<div class="bowl-item">${item.icon} ${item.name}</div>`;
+            }).join('');
+        }
+
+        // Profile Submission
+        function submitProfile() {
+            const form = document.getElementById('profileForm');
+            const error = document.getElementById('errorProfile');
+            
+            const gender = form.querySelector('input[name="gender"]:checked');
+            const age = form.querySelector('#age').value;
+            const skill = form.querySelector('input[name="skill"]:checked');
+            const cuisine = form.querySelector('input[name="cuisine"]:checked');
+
+            if (!gender || !age || !skill || !cuisine) {
+                error.classList.add('show');
+                setTimeout(() => error.classList.remove('show'), 3000);
+                return;
+            }
+
+            userProfile = {
+                gender: gender.value,
+                age: parseInt(age),
+                skill: skill.value,
+                cuisine: cuisine.value
+            };
+
+            error.classList.remove('show');
+            generateRecommendations();
+            goToPage(5);
+        }
+
+        // Recommendation Algorithm
+        function generateRecommendations() {
+            const scoredRecipes = recipes.map(recipe => {
+                let score = 0;
+                let reasons = [];
+
+                // Ingredient matching (40 points)
+                const matchedIngredients = recipe.requiredIngredients.filter(ing => 
+                    selectedIngredients.includes(ing)
+                ).length;
+                const ingredientScore = (matchedIngredients / recipe.requiredIngredients.length) * 40;
+                score += ingredientScore;
+                reasons.push(`${Math.round((matchedIngredients / recipe.requiredIngredients.length) * 100)}% ingredient match`);
+
+                // Bonus for optional ingredients (10 points)
+                const optionalMatched = recipe.optionalIngredients.filter(ing => 
+                    selectedIngredients.includes(ing)
+                ).length;
+                if (recipe.optionalIngredients.length > 0) {
+                    score += (optionalMatched / recipe.optionalIngredients.length) * 10;
+                }
+
+                // Tool availability (30 points)
+                const hasAllTools = recipe.requiredTools.every(tool => 
+                    selectedTools.includes(tool)
+                );
+                if (hasAllTools) {
+                    score += 30;
+                    reasons.push('All required tools available');
+                } else {
+                    const toolMatch = recipe.requiredTools.filter(tool => 
+                        selectedTools.includes(tool)
+                    ).length / recipe.requiredTools.length;
+                    score += toolMatch * 30;
+                    reasons.push(`${Math.round(toolMatch * 100)}% tool availability`);
+                }
+
+                // Difficulty match (20 points)
+                const skillLevels = { beginner: 1, intermediate: 2, advanced: 3 };
+                const userSkillLevel = skillLevels[userProfile.skill];
+                const recipeSkillLevel = skillLevels[recipe.difficulty];
+                
+                if (userSkillLevel >= recipeSkillLevel) {
+                    score += 20;
+                    reasons.push('Suitable for your skill level');
+                } else {
+                    score += 10;
+                    reasons.push('Slightly challenging for your level');
+                }
+
+                // Age preference bonus (5 points)
+                if (userProfile.age >= recipe.preferredAge[0] && 
+                    userProfile.age <= recipe.preferredAge[1]) {
+                    score += 5;
+                }
+
+                // Cuisine preference bonus (5 points)
+                if (userProfile.cuisine === 'Any' || userProfile.cuisine === recipe.cuisine) {
+                    score += 5;
+                    if (userProfile.cuisine === recipe.cuisine) {
+                        reasons.push('Matches your cuisine preference');
+                    }
+                }
+
+                return {
+                    ...recipe,
+                    score: Math.round(score),
+                    matchPercentage: Math.round(score),
+                    reasons: reasons.join('. ')
+                };
+            });
+
+            // Sort by score and get top 3
+            const topRecipes = scoredRecipes
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3);
+
+            displayResults(topRecipes);
+        }
+
+        // Display Results
+        function displayResults(topRecipes) {
+            const container = document.getElementById('recipeResults');
+            
+            container.innerHTML = topRecipes.map((recipe, index) => `
+                <div class="recipe-card">
+                    <div class="recipe-image">
+                        <div class="recipe-rank">#${index + 1}</div>
+                        <div class="recipe-match">${recipe.matchPercentage}% Match</div>
+                        <div style="font-size: 100px; position: relative; z-index: 1;">${recipe.icon}</div>
+                    </div>
+                    <div class="recipe-content">
+                        <h2 class="recipe-name">${recipe.name}</h2>
+                        <span class="recipe-cuisine">${recipe.cuisine} Cuisine</span>
+                        
+                        <div class="recipe-details">
+                            <div class="detail-item">
+                                <span class="detail-icon">⏱️</span>
+                                <div class="detail-label">Time</div>
+                                <div class="detail-value">${recipe.cookingTime}</div>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-icon">👨‍🍳</span>
+                                <div class="detail-label">Level</div>
+                                <div class="detail-value">${recipe.difficulty}</div>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-icon">🍽️</span>
+                                <div class="detail-label">Servings</div>
+                                <div class="detail-value">${recipe.servings}</div>
+                            </div>
+                        </div>
+
+                        <div class="recipe-ingredients">
+                            <div class="ingredients-title">Required Ingredients:</div>
+                            <div class="ingredients-list">
+                                ${recipe.requiredIngredients.map(ing => {
+                                    const allIngredients = [...ingredients.main, ...ingredients.sub, ...ingredients.vegetables];
+                                    const item = allIngredients.find(i => i.id === ing);
+                                    return `<span class="ingredient-tag">${item ? item.icon + ' ' + item.name : ing}</span>`;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <div class="recipe-reason">
+                            <strong>Why this recipe?</strong><br>
+                            ${recipe.reasons}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Restart
+        function restart() {
+            selectedIngredients = [];
+            selectedTools = [];
+            userProfile = {};
+            
+            // Reset all selections
+            document.querySelectorAll('.item-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Reset form
+            document.getElementById('profileForm').reset();
+            
+            goToPage(0);
+        }
+    </script>
+</body>
+</html>
